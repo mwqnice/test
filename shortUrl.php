@@ -1,83 +1,29 @@
 <?php
-//Sina App_Key
-define('SINA_APPKEY', '31641035');
-function curlQuery($url)
+function shorturl($url = '', $domain = 'http://m.chuchupai.cn/')
 {
-    //设置附加HTTP头
-    $addHead = array(
-        "Content-type: application/json",
-    );
-    //初始化curl，当然，你也可以用fsockopen代替
-    $curl_obj = curl_init();
-    //设置网址
-    curl_setopt($curl_obj, CURLOPT_URL, $url);
-    //附加Head内容
-    curl_setopt($curl_obj, CURLOPT_HTTPHEADER, $addHead);
-    //是否输出返回头信息
-    curl_setopt($curl_obj, CURLOPT_HEADER, 0);
-    //将curl_exec的结果返回
-    curl_setopt($curl_obj, CURLOPT_RETURNTRANSFER, 1);
-    //设置超时时间
-    curl_setopt($curl_obj, CURLOPT_TIMEOUT, 15);
-    //执行
-    $result = curl_exec($curl_obj);
-    //关闭curl回话
-    curl_close($curl_obj);
-    return $result;
-}
-//简单处理下url，sina对于没有协议(http://)开头的和不规范的地址会返回错误
-function filterUrl($url = '')
-{
-    $url = trim(strtolower($url));
-    $url = trim(preg_replace('/^http:\//', '', $url));
-    if ($url == '') {
-        return false;
-    } else {
-        return urlencode('http://' . $url);
-    }
+    $charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    $key = "jiuqiwan";
+    $urlhash = md5($key . $url);
+    $len = strlen($urlhash);
 
-}
-//根据长网址获取短网址
-function sinaShortenUrl($long_url)
-{
-    //拼接请求地址，此地址你可以在官方的文档中查看到
-    $url = 'http://api.t.sina.com.cn/short_url/shorten.json?source=' . SINA_APPKEY . '&url_long=' . $long_url;
-    //获取请求结果
-    $result = curlQuery($url);
-    //下面这行注释用于调试，
-    //print_r($result);exit();
-    //解析json
-    $json = json_decode($result);
-    //异常情况返回false
-    if (isset($json->error) || !isset($json[0]->url_short) || $json[0]->url_short == '') {
-        return false;
-    } else {
-        return $json[0]->url_short;
-    }
+    #将加密后的串分成4段，每段4字节，对每段进行计算，一共可以生成四组短连接
+    for ($i = 0; $i < 4; $i++) {
+        $urlhash_piece = substr($urlhash, $i * $len / 4, $len / 4);
+        #将分段的位与0x3fffffff做位与，0x3fffffff表示二进制数的30个1，即30位以后的加密串都归零
+        $hex = hexdec($urlhash_piece) & 0x3fffffff; #此处需要用到hexdec()将16进制字符串转为10进制数值型，否则运算会不正常
 
-}
-//根据短网址获取长网址，此函数重用了不少sinaShortenUrl中的代码，以方便你阅读对比，你可以自行合并两个函数
-function sinaExpandUrl($short_url)
-{
-    //拼接请求地址，此地址你可以在官方的文档中查看到
-    $url = 'http://api.t.sina.com.cn/short_url/expand.json?source=' . SINA_APPKEY . '&url_short=' . $short_url;
-    //获取请求结果
-    $result = curlQuery($url);
-    //下面这行注释用于调试
-    //print_r($result);exit();
-    //解析json
-    $json = json_decode($result);
-    //异常情况返回false
-    if (isset($json->error) || !isset($json[0]->url_long) || $json[0]->url_long == '') {
-        return false;
-    } else {
-        return $json[0]->url_long;
-    }
+        $short_url = $domain . "s/";
+        #生成6位短连接
+        for ($j = 0; $j < 6; $j++) {
+            #将得到的值与0x0000003d,3d为61，即charset的坐标最大值
+            $short_url .= $charset[$hex & 0x0000003d];
+            #循环完以后将hex右移5位
+            $hex = $hex >> 5;
+        }
 
+        $short_url_list[] = $short_url;
+    }
+    echo '<pre>';
+    print_r($short_url_list);
 }
-//要缩短的网址
-$url = "cccc.com/a/index.php?a=1211"; //这里自己看着办，修改成你要缩短的网址还是获取post的数据还是怎么滴。
-$url = filterUrl($url); //对URL进行简单处理的方法
-echo $short = sinaShortenUrl($url); //根据传入的长网址生产短网址
-echo "</br>";
-echo $ulong = sinaExpandUrl($short);
+shorturl('http://m.chuchupai.cn/YanxiStory?inviter=477&channel=yanxi_0808');

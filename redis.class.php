@@ -549,6 +549,15 @@ class FM_Redis
         return $this->redis->rPop($key);
     }
 
+    /**
+     * 返回列表的长度
+     * @param unknown $key
+     */
+    public function lsize($key)
+    {
+        return $this->redis->lSize($key);
+    }
+
     /*************redis字符串操作命令*****************/
 
     /**
